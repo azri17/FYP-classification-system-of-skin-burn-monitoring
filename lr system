@@ -1,0 +1,82 @@
+import tkinter as tk
+from tkinter import filedialog
+import csv
+import os
+from PIL import Image, ImageTk
+
+# Define the full path to the image files
+image_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the Python script
+partial_path = os.path.join(image_dir, "partialthickness.png")
+deep_dermal_path = os.path.join(image_dir, "deepdermal.png")
+fullthickness_path = os.path.join(image_dir, "fullthickness.png")
+
+def open_csv_file():
+    filepath = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+    if filepath:  # Check if the user selected a file
+        with open(filepath, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            next(reader)  # Skip the header row
+
+            data = []
+            for row in reader:
+                try:
+                    constant_difference = float(row[3])
+                    classification, color, image_path, stage = classify_difference(constant_difference)
+                    data.append((constant_difference, classification, color, image_path, stage))
+                except (ValueError, IndexError):
+                    continue
+
+        display_results(data)
+
+def classify_difference(value):
+    if 13 <= value <= 22:
+        return "Full-thickness burn", "red", fullthickness_path, "Stage 3"
+    elif 7 <= value <= 12:
+        return "Deep dermal burn", "orange", deep_dermal_path, "Stage 2"
+    elif value < 7:
+        return "Partial thickness to deep dermal burn", "yellow", partial_path, "Stage 1"
+
+def display_results(data):
+    result_window = tk.Toplevel(root)
+    result_window.title("Classification Results")
+
+    for difference, classification, color, image_path, stage in data:
+        frame = tk.Frame(result_window, pady=10)
+        frame.pack(pady=5, fill='x')
+
+        label = tk.Label(frame, text=f"Value of real permittivity difference: {difference:.2f}\nClassification: {classification}", font=("Arial", 14))
+        label.pack()
+
+        color_frame = tk.Frame(frame, bd=3, relief="solid")
+        color_frame.pack(pady=5)
+
+        color_box = tk.Frame(color_frame, bg=color, height=30, width=150)
+        color_box.pack(side='left')
+
+        stage_label = tk.Label(color_box, text=stage, font=("Arial", 10, 'bold'), bg=color)
+        stage_label.pack()
+
+        if image_path:
+            img = Image.open(image_path)
+            img = img.resize((200, 200), Image.Resampling.LANCZOS)
+            img = ImageTk.PhotoImage(img)
+            img_label = tk.Label(frame, image=img)
+            img_label.image = img
+            img_label.pack(pady=10)
+
+    # Classify another file button
+    another_file_button = tk.Button(result_window, text="Classify Another File", command=open_csv_file, font=("Arial", 10))
+    another_file_button.pack(pady=10)
+
+# Set up the main application window
+root = tk.Tk()
+root.title("Health vs Burnt Analysis")
+
+# Enlarge the size of the main window
+root.geometry("800x600")
+
+# Create the open button to load and classify CSV file
+open_button = tk.Button(root, text="Open CSV File and Classify", command=open_csv_file, font=("Arial", 14))
+open_button.pack(pady=20)
+
+root.mainloop()
